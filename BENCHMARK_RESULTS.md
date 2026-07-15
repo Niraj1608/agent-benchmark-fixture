@@ -18,6 +18,7 @@
 | **T07-LRU** | ✅ Verified | `get()` doesn't mark recency | `make -C cpp/t07_lru test` |
 | **T08-CSV** | ✅ Verified | Can't parse commas in quotes | `make -C cpp/t08_csv_parser test` |
 | **T09-OrderBook** | ✅ Verified | `best_bid`/`best_ask` swapped | `make -C cpp/t09_order_book test` |
+| **T10-Hard** | ✅ Verified | Solution implemented & tested | `make -C cpp/t10_cpp_hard_parity_constraints test` |
 
 ---
 
