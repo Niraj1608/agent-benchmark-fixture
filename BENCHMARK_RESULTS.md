@@ -8,13 +8,16 @@
 
 ## Test Summary
 
-| Task | Status | Bug Found | Tests Pass |
+| Task | Status | Bug Found | Validation |
 |------|--------|-----------|------------|
-| T02-Bugfix | ✅ Baseline Verified | Division by zero raises exception | 17/17 |
-| T03-Tests | ✅ Baseline Verified | N/A - needs test coverage | 17/17 |
-| T04-Feature | ✅ Baseline Verified | Missing logging capability | 17/17 |
-| T05-Security | ✅ Baseline Verified | SQL injection vulnerability | 17/17 |
-| T06-Quant | ✅ Baseline Verified | Incomplete implementations | 17/17 |
+| T02-Bugfix | ✅ Verified | Division by zero raises exception | `pytest tests/` |
+| T03-Tests | ✅ Verified | Missing edge case coverage | `pytest tests/` |
+| T04-Feature | ✅ Verified | Missing logging capability | `pytest tests/` |
+| T05-Security | ✅ Verified | SQL injection vulnerability | `pytest tests/` |
+| T06-Quant | ✅ Verified | Incomplete implementations | `pytest tests/` |
+| **T07-LRU** | ✅ Verified | `get()` doesn't mark recency | `make -C cpp/t07_lru test` |
+| **T08-CSV** | ✅ Verified | Can't parse commas in quotes | `make -C cpp/t08_csv_parser test` |
+| **T09-OrderBook** | ✅ Verified | `best_bid`/`best_ask` swapped | `make -C cpp/t09_order_book test` |
 
 ---
 
@@ -264,6 +267,150 @@ generate_signals(prices, 2, 3)
 - [ ] Buy signals on short MA crossover above long MA
 - [ ] Sell signals on short MA crossover below long MA
 - [ ] Edge cases handled (insufficient data)
+
+---
+
+## Task T07-C++: LRU Cache Recency Bug
+
+### Prompt for Agent
+```
+Fix the LRU cache implementation in cpp/t07_lru/.
+
+The cache should mark an item as recently used when `get` succeeds.
+Currently, the bug causes the wrong item to be evicted.
+
+Run: make -C cpp/t07_lru test
+```
+
+### Baseline Behavior
+```bash
+$ make -C cpp/t07_lru test
+test_recency_on_get FAILED
+# get() doesn't call touch() to update recency
+```
+
+### Bug Location
+```cpp
+// cpp/t07_lru/lru.cpp, line 11
+bool LRUCache<K, V>::get(const K& key, V& value) {
+    // ...
+    value = it->second.first;
+    // BUG: Should call touch(key) here!
+    return true;
+}
+```
+
+### Expected Fix
+```cpp
+bool LRUCache<K, V>::get(const K& key, V& value) {
+    // ...
+    value = it->second.first;
+    touch(key);  // Add this line!
+    return true;
+}
+```
+
+### Feedback Checklist
+- [ ] `get()` marks item as recently used
+- [ ] Eviction removes least recently used key
+- [ ] All tests pass
+
+---
+
+## Task T08-C++: CSV Parser Quoted Fields
+
+### Prompt for Agent
+```
+Fix the CSV parser in cpp/t08_csv_parser/ to handle:
+1. Commas inside quoted fields
+2. Escaped double quotes ("")
+
+Run: make -C cpp/t08_csv_parser test
+```
+
+### Baseline Behavior
+```bash
+$ make -C cpp/t08_csv_parser test
+test_comma_in_quoted_field FAILED
+# Input: "John, Smith","New York"
+# Expected: ["John, Smith", "New York"]
+# Got: ["John", " Smith", "New York"]
+```
+
+### Bug Location
+```cpp
+// cpp/t08_csv_parser/csv_parser.cpp
+while (std::getline(stream, field, ',')) {  // Simple split
+    fields.push_back(trim_quotes(field));
+}
+```
+
+### Expected Fix
+Implement proper quoted field parsing that:
+- Recognizes quoted fields (starts with ")
+- Doesn't split on commas inside quotes
+- Handles escaped quotes ("") by converting to single quote
+
+### Feedback Checklist
+- [ ] Handles commas inside quoted fields
+- [ ] Strips surrounding quotes
+- [ ] Handles escaped double quotes
+- [ ] All tests pass
+
+---
+
+## Task T09-C++: Order Book Best Bid/Ask
+
+### Prompt for Agent
+```
+Fix the order book in cpp/t09_order_book/.
+
+`best_bid()` should return the highest bid price.
+`best_ask()` should return the lowest ask price.
+
+Currently they're swapped!
+
+Run: make -C cpp/t09_order_book test
+```
+
+### Baseline Behavior
+```bash
+$ make -C cpp/t09_order_book test
+test_multiple_bids FAILED
+# Bids: 100, 105, 102
+# Expected best_bid: 105 (highest)
+# Got: 100 (lowest - BUG!)
+```
+
+### Bug Location
+```cpp
+// cpp/t09_order_book/order_book.cpp
+double OrderBook::best_bid() const {
+    // BUG: Uses min_element instead of max_element
+    return std::min_element(bids_.begin(), bids_.end())->first;
+}
+
+double OrderBook::best_ask() const {
+    // BUG: Uses max_element instead of min_element
+    return std::max_element(asks_.begin(), asks_.end())->first;
+}
+```
+
+### Expected Fix
+```cpp
+double OrderBook::best_bid() const {
+    return std::max_element(bids_.begin(), bids_.end())->first;  // max!
+}
+
+double OrderBook::best_ask() const {
+    return std::min_element(asks_.begin(), asks_.end())->first;  // min!
+}
+```
+
+### Feedback Checklist
+- [ ] `best_bid()` returns highest bid
+- [ ] `best_ask()` returns lowest ask
+- [ ] All tests pass
 
 ---
 
